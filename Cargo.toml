@@ -1,0 +1,18 @@
+[package]
+name = "rotated-vec"
+version = "0.1.0"
+authors = ["Tobin Baker <tobin.d.baker@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "rotated_vec"
+path = "src/lib.rs"
+bench = false
+
+[dev-dependencies]
+rand = "0.6.5"
+criterion = "0.3.0"
+lazy_static = "1.4.0"
+
+[dependencies]
+itertools = "0.8.0"
