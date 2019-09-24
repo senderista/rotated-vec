@@ -559,7 +559,6 @@ where
         };
         // find subarray containing this insertion point
         let subarray_idx = Self::get_subarray_idx_from_array_idx(insert_idx);
-        println!("subarray_idx: {}", subarray_idx);
         // inserted element could be in a new subarray
         debug_assert!(subarray_idx <= self.start_indexes.len());
         // create a new subarray if necessary
@@ -568,7 +567,6 @@ where
         }
         let subarray_offset = Self::get_array_idx_from_subarray_idx(subarray_idx);
         // if insertion point is in last subarray and last subarray isn't full, just insert the new element
-        println!("is_last_subarray_full(): {}", self.is_last_subarray_full());
         if subarray_idx == self.start_indexes.len() - 1 && !self.is_last_subarray_full() {
             // Since we always insert into a partially full subarray in order,
             // there is no need to update the pivot location.
@@ -932,7 +930,6 @@ where
     #[inline(always)]
     fn assert_invariants(&self) -> bool {
         // assert offset array has proper length
-        println!("self.len(): {}, self.start_indexes.len(): {}", self.len(), self.start_indexes.len());
         let expected_start_indexes_len = if self.is_empty() {
             0
         } else {
