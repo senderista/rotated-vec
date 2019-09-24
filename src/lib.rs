@@ -400,7 +400,6 @@ where
     /// assert_eq!(iter.next(), None);
     /// assert_eq!(vec, vec![2, 3, 4].into());
     /// ```
-    // pub fn iter_mut(&mut self) -> IterMut<'_, T> {
     pub fn iter_mut(&mut self) -> IterMut<T> {
         let len = self.len();
         IterMut {
@@ -947,9 +946,8 @@ where
 
     // given data array, initialize offset array
     fn init(&mut self) {
-        if self.data.is_empty() {
-            debug_assert!(self.start_indexes.is_empty());
-        } else {
+        debug_assert!(self.start_indexes.is_empty());
+        if !self.data.is_empty() {
             let last_subarray_idx = Self::get_subarray_idx_from_array_idx(self.data.len() - 1);
             self.start_indexes = vec![0; last_subarray_idx + 1];
         }
@@ -1055,7 +1053,7 @@ where
 {
     type Item = &'a T;
 
-    fn next(&mut self) -> Option<&'a T> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.next_index > self.next_rev_index {
             None
         } else {
@@ -1094,7 +1092,7 @@ impl<'a, T> DoubleEndedIterator for Iter<'a, T>
 where
     T: Copy + Default + Debug,
 {
-    fn next_back(&mut self) -> Option<&'a T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
         if self.next_rev_index < self.next_index {
             None
         } else {
@@ -1149,7 +1147,74 @@ where
             unsafe { mem::transmute(current) }
         }
     }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.next_index += n;
+        if self.next_index > self.next_rev_index {
+            None
+        } else {
+            let nth = self.container.get_mut(self.next_index);
+            self.next_index += 1;
+            // per above links, rustc cannot understand that we never return two mutable references to the same object,
+            // so we have to use unsafe code to coerce the return value to the desired lifetime
+            unsafe { mem::transmute(nth) }
+        }
+    }
+
+    fn count(self) -> usize {
+        self.container.data.len() - self.next_index
+    }
+
+    fn last(self) -> Option<Self::Item> {
+        self.container.get_mut(self.container.data.len() - 1)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining_count = self.container.data.len() - self.next_index;
+        (remaining_count, Some(remaining_count))
+    }
 }
+
+impl<'a, T> DoubleEndedIterator for IterMut<'a, T>
+where
+    T: Copy + Default + Debug,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.next_rev_index < self.next_index {
+            None
+        } else {
+            let current = self.container.get_mut(self.next_rev_index);
+            self.next_rev_index -= 1;
+            // per above links, rustc cannot understand that we never return two mutable references to the same object,
+            // so we have to use unsafe code to coerce the return value to the desired lifetime
+            unsafe { mem::transmute(current) }
+        }
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        self.next_rev_index -= n;
+        if self.next_rev_index < self.next_index {
+            None
+        } else {
+            let nth = self.container.get_mut(self.next_rev_index);
+            self.next_rev_index -= 1;
+            // per above links, rustc cannot understand that we never return two mutable references to the same object,
+            // so we have to use unsafe code to coerce the return value to the desired lifetime
+            unsafe { mem::transmute(nth) }
+        }
+    }
+}
+
+impl<T> ExactSizeIterator for IterMut<'_, T>
+where
+    T: Copy + Default + Debug,
+{
+    fn len(&self) -> usize {
+        self.container.len()
+    }
+}
+
+impl<T> FusedIterator for IterMut<'_, T> where T: Copy + Default + Debug {}
 
 impl<'a, T> IntoIterator for &'a RotatedVec<T>
 where
@@ -1158,8 +1223,20 @@ where
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
 
-    fn into_iter(self) -> Iter<'a, T> {
+    fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut RotatedVec<T>
+where
+    T: Copy + Default + Debug,
+{
+    type Item = &'a mut T;
+    type IntoIter = IterMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
@@ -1241,6 +1318,7 @@ where
             // un-rotate subarray in-place
             subarray.rotate_left(pivot_offset);
         }
+        // steal data array
         self.data
     }
 }
