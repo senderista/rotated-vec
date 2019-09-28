@@ -1,6 +1,5 @@
 #![doc(html_root_url = "https://senderista.github.io/sorted-vec/")]
 #![doc(html_logo_url = "https://raw.githubusercontent.com/senderista/sorted-vec/master/cells.png")]
-#![feature(const_int_conversion)]
 
 use std::mem;
 use std::cmp::{min, Ordering};
@@ -803,13 +802,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// #![feature(is_sorted)]
+    /// use is_sorted::IsSorted;
     /// use rotated_vec::RotatedVec;
     ///
     /// let mut vec: RotatedVec<_> = vec![-5, 4, 1, -3, 2].into();
     ///
     /// vec.sort();
-    /// assert!(vec.iter().is_sorted());
+    /// assert!(IsSorted::is_sorted(&mut vec.iter()));
     /// ```
     pub fn sort(&mut self)
         where T: Ord
@@ -840,13 +839,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// #![feature(is_sorted)]
+    /// use is_sorted::IsSorted;
     /// use rotated_vec::RotatedVec;
     ///
     /// let mut vec: RotatedVec<_> = vec![-5, 4, 1, -3, 2].into();
     ///
     /// vec.sort_unstable();
-    /// assert!(vec.iter().is_sorted());
+    /// assert!(IsSorted::is_sorted(&mut vec.iter()));
     /// ```
     ///
     /// [pdqsort]: https://github.com/orlp/pdqsort
@@ -1355,17 +1354,20 @@ mod tests {
     use rand::rngs::SmallRng;
 
     const NUM_ELEMS: usize = 1 << 10;
-    const SEED: u64 = u64::from_be_bytes(*b"cafebabe");
+    // only works on nightly, uncomment when from_be_bytes is stabilized as a const fn
+    // const SEED: u64 = u64::from_be_bytes(*b"cafebabe");
 
     #[test]
     fn push_pop() {
-        let mut rng: SmallRng = SeedableRng::seed_from_u64(SEED);
+        // FIXME: remove when const fns are in stable
+        let seed: u64 = u64::from_be_bytes(*b"cafebabe");
+        let mut rng: SmallRng = SeedableRng::seed_from_u64(seed);
         let iter = rng.sample_iter(&Standard).take(NUM_ELEMS);
         let mut rotated_vec: RotatedVec<usize> = RotatedVec::new();
         for v in iter {
             rotated_vec.push(v);
         }
-        let mut rng: SmallRng = SeedableRng::seed_from_u64(SEED);
+        let mut rng: SmallRng = SeedableRng::seed_from_u64(seed);
         let iter = rng.sample_iter(&Standard).take(NUM_ELEMS).collect::<Vec<usize>>().into_iter().rev();
         for v in iter {
             assert_eq!(rotated_vec.pop().unwrap(), v);
@@ -1375,7 +1377,9 @@ mod tests {
 
     #[test]
     fn compare_iter() {
-        let mut rng: SmallRng = SeedableRng::seed_from_u64(SEED);
+        // FIXME: remove when const fns are in stable
+        let seed: u64 = u64::from_be_bytes(*b"cafebabe");
+        let mut rng: SmallRng = SeedableRng::seed_from_u64(seed);
         let iter = rng.sample_iter(&Standard).take(NUM_ELEMS);
         let mut rotated_vec: RotatedVec<usize> = RotatedVec::new();
         for v in iter {
@@ -1389,7 +1393,9 @@ mod tests {
 
     #[test]
     fn compare_into_iter() {
-        let mut rng: SmallRng = SeedableRng::seed_from_u64(SEED);
+        // FIXME: remove when const fns are in stable
+        let seed: u64 = u64::from_be_bytes(*b"cafebabe");
+        let mut rng: SmallRng = SeedableRng::seed_from_u64(seed);
         let iter = rng.sample_iter(&Standard).take(NUM_ELEMS as usize);
         let mut rotated_vec: RotatedVec<usize> = RotatedVec::new();
         for v in iter {
