@@ -10,10 +10,8 @@ path = "src/lib.rs"
 bench = false
 
 [dev-dependencies]
-rand = "0.6.5"
-criterion = "0.3.0"
-lazy_static = "1.4.0"
 is_sorted = "0.1.1"
+proptest = "0.9"
 
 [dependencies]
 itertools = "0.8.0"

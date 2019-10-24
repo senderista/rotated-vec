@@ -58,6 +58,21 @@ pub struct Iter<'a, T: 'a> {
     next_rev_index: usize,
 }
 
+impl<'a, T> Iter<'a, T>
+where
+    T: Copy + Default + Debug,
+{
+    #[inline(always)]
+    fn assert_invariants(&self) -> bool {
+        assert!(self.next_index <= self.container.len());
+        assert!(self.next_rev_index <= self.container.len());
+        if self.next_rev_index < self.next_index {
+            assert!(self.next_index - self.next_rev_index == 1);
+        }
+        true
+    }
+}
+
 /// An iterator over the items of a `RotatedVec`.
 ///
 /// This `struct` is created by the [`iter_mut`] method on [`RotatedVec`][`RotatedVec`].
@@ -67,6 +82,21 @@ pub struct IterMut<'a, T: 'a> {
     container: &'a mut RotatedVec<T>,
     next_index: usize,
     next_rev_index: usize,
+}
+
+impl<'a, T> IterMut<'a, T>
+where
+    T: Copy + Default + Debug,
+{
+    #[inline(always)]
+    fn assert_invariants(&self) -> bool {
+        assert!(self.next_index <= self.container.len());
+        assert!(self.next_rev_index <= self.container.len());
+        if self.next_rev_index < self.next_index {
+            assert!(self.next_index - self.next_rev_index == 1);
+        }
+        true
+    }
 }
 
 /// An owning iterator over the items of a `RotatedVec`.
@@ -373,7 +403,7 @@ where
         Iter {
             container: self,
             next_index: 0,
-            next_rev_index: self.len() - 1,
+            next_rev_index: if self.len() == 0 { 0 } else { self.len() - 1 },
         }
     }
 
@@ -654,6 +684,7 @@ where
         assert!(index < self.len());
         let old_len = self.len();
         let mut remove_idx = self.get_real_index(index);
+        let element = self.data[remove_idx];
         let max_subarray_idx = self.start_indexes.len() - 1;
         let max_subarray_offset = Self::get_array_idx_from_subarray_idx(max_subarray_idx);
         // find subarray containing the element to remove
@@ -740,7 +771,7 @@ where
             // since the last subarray is always in order, its first element is always on the first offset
             self.data[prev_end_idx] = self.data[max_subarray_offset];
         }
-        let element = self.data.remove(max_subarray_remove_idx);
+        self.data.remove(max_subarray_remove_idx);
         // if last subarray is now empty, trim start_indexes
         if max_subarray_offset == self.data.len() {
             self.start_indexes.pop();
@@ -1053,36 +1084,55 @@ where
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_index > self.next_rev_index {
+        if self.len() == 0 || self.next_index > self.next_rev_index {
             None
         } else {
             let current = self.container.get(self.next_index);
             self.next_index += 1;
+            debug_assert!(self.assert_invariants());
             current
         }
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.next_index += n;
-        if self.next_index > self.next_rev_index {
+        self.next_index = min(self.next_index + n, self.len());
+        let ret = if self.len() == 0 || self.next_index > self.next_rev_index {
             None
         } else {
             let nth = self.container.get(self.next_index);
             self.next_index += 1;
             nth
-        }
+        };
+        debug_assert!(self.assert_invariants());
+        ret
     }
 
     fn count(self) -> usize {
-        self.container.data.len() - self.next_index
+        self.len() - self.next_index
     }
 
     fn last(self) -> Option<Self::Item> {
-        self.container.get(self.container.data.len() - 1)
+        if self.len() == 0 {
+            None
+        } else {
+            self.container.get(self.len() - 1)
+        }
+    }
+
+    fn max(self) -> Option<Self::Item> {
+        if self.len() == 0 {
+            None
+        } else {
+            self.container.get(self.len() - 1)
+        }
+    }
+
+    fn min(self) -> Option<Self::Item> {
+        self.container.get(0)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining_count = self.container.data.len() - self.next_index;
+        let remaining_count = self.len() - self.next_index;
         (remaining_count, Some(remaining_count))
     }
 }
@@ -1092,24 +1142,41 @@ where
     T: Copy + Default + Debug,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.next_rev_index < self.next_index {
+        if self.len() == 0 || self.next_rev_index < self.next_index {
             None
         } else {
             let current = self.container.get(self.next_rev_index);
-            self.next_rev_index -= 1;
+            // We can't decrement next_rev_index past 0, so we cheat and move next_index
+            // ahead instead. That works since next() must return None once next_rev_index
+            // has crossed next_index.
+            if self.next_rev_index == 0 {
+                self.next_index += 1;
+            } else {
+                self.next_rev_index -= 1;
+            }
+            debug_assert!(self.assert_invariants());
             current
         }
     }
 
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        self.next_rev_index -= n;
-        if self.next_rev_index < self.next_index {
+        self.next_rev_index = self.next_rev_index.saturating_sub(n);
+        let ret = if self.len() == 0 || self.next_rev_index < self.next_index {
             None
         } else {
             let nth = self.container.get(self.next_rev_index);
-            self.next_rev_index -= 1;
+            // We can't decrement next_rev_index past 0, so we cheat and move next_index
+            // ahead instead. That works since next() must return None once next_rev_index
+            // has crossed next_index.
+            if self.next_rev_index == 0 {
+                self.next_index += 1;
+            } else {
+                self.next_rev_index -= 1;
+            }
             nth
-        }
+        };
+        debug_assert!(self.assert_invariants());
+        ret
     }
 }
 
@@ -1135,7 +1202,7 @@ where
     // https://stackoverflow.com/questions/25730586/how-can-i-create-my-own-data-structure-with-an-iterator-that-returns-mutable-ref
     // https://stackoverflow.com/questions/27118398/simple-as-possible-example-of-returning-a-mutable-reference-from-your-own-iterat
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_index > self.next_rev_index {
+        let ret = if self.len() == 0 || self.next_index > self.next_rev_index {
             None
         } else {
             let current = self.container.get_mut(self.next_index);
@@ -1144,12 +1211,14 @@ where
             // per above links, rustc cannot understand that we never return two mutable references to the same object,
             // so we have to use unsafe code to coerce the return value to the desired lifetime
             unsafe { mem::transmute(current) }
-        }
+        };
+        debug_assert!(self.assert_invariants());
+        ret
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.next_index += n;
-        if self.next_index > self.next_rev_index {
+        self.next_index = min(self.next_index + n, self.len());
+        let ret = if self.len() == 0 || self.next_index > self.next_rev_index {
             None
         } else {
             let nth = self.container.get_mut(self.next_index);
@@ -1157,19 +1226,25 @@ where
             // per above links, rustc cannot understand that we never return two mutable references to the same object,
             // so we have to use unsafe code to coerce the return value to the desired lifetime
             unsafe { mem::transmute(nth) }
-        }
+        };
+        debug_assert!(self.assert_invariants());
+        ret
     }
 
     fn count(self) -> usize {
-        self.container.data.len() - self.next_index
+        self.len() - self.next_index
     }
 
     fn last(self) -> Option<Self::Item> {
-        self.container.get_mut(self.container.data.len() - 1)
+        if self.len() == 0 {
+            None
+        } else {
+            self.container.get_mut(self.len() - 1)
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining_count = self.container.data.len() - self.next_index;
+        let remaining_count = self.len() - self.next_index;
         (remaining_count, Some(remaining_count))
     }
 }
@@ -1179,11 +1254,19 @@ where
     T: Copy + Default + Debug,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.next_rev_index < self.next_index {
+        if self.len() == 0 || self.next_rev_index < self.next_index {
             None
         } else {
-            let current = self.container.get_mut(self.next_rev_index);
-            self.next_rev_index -= 1;
+            let current = self.container.get(self.next_rev_index);
+            // We can't decrement next_rev_index past 0, so we cheat and move next_index
+            // ahead instead. That works since next() must return None once next_rev_index
+            // has crossed next_index.
+            if self.next_rev_index == 0 {
+                self.next_index += 1;
+            } else {
+                self.next_rev_index -= 1;
+            }
+            debug_assert!(self.assert_invariants());
             // per above links, rustc cannot understand that we never return two mutable references to the same object,
             // so we have to use unsafe code to coerce the return value to the desired lifetime
             unsafe { mem::transmute(current) }
@@ -1191,16 +1274,25 @@ where
     }
 
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        self.next_rev_index -= n;
-        if self.next_rev_index < self.next_index {
+        self.next_rev_index = self.next_rev_index.saturating_sub(n);
+        let ret = if self.len() == 0 || self.next_rev_index < self.next_index {
             None
         } else {
-            let nth = self.container.get_mut(self.next_rev_index);
-            self.next_rev_index -= 1;
+            let nth = self.container.get(self.next_rev_index);
+            // We can't decrement next_rev_index past 0, so we cheat and move next_index
+            // ahead instead. That works since next() must return None once next_rev_index
+            // has crossed next_index.
+            if self.next_rev_index == 0 {
+                self.next_index += 1;
+            } else {
+                self.next_rev_index -= 1;
+            }
             // per above links, rustc cannot understand that we never return two mutable references to the same object,
             // so we have to use unsafe code to coerce the return value to the desired lifetime
             unsafe { mem::transmute(nth) }
-        }
+        };
+        debug_assert!(self.assert_invariants());
+        ret
     }
 }
 
@@ -1261,11 +1353,12 @@ where
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_index >= self.vec.len() {
+        if self.next_index == self.vec.len() {
             None
         } else {
             let current = self.vec[self.next_index];
             self.next_index += 1;
+            debug_assert!(self.next_index <= self.vec.len());
             Some(current)
         }
     }
@@ -1343,92 +1436,5 @@ where
     #[inline]
     fn default() -> RotatedVec<T> {
         RotatedVec::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rand::distributions::Standard;
-    use rand::prelude::*;
-    use rand::rngs::SmallRng;
-
-    const NUM_ELEMS: usize = 1 << 10;
-    // only works on nightly, uncomment when from_be_bytes is stabilized as a const fn
-    // const SEED: u64 = u64::from_be_bytes(*b"cafebabe");
-
-    #[test]
-    fn push_pop() {
-        // FIXME: remove when const fns are in stable
-        let seed: u64 = u64::from_be_bytes(*b"cafebabe");
-        let mut rng: SmallRng = SeedableRng::seed_from_u64(seed);
-        let iter = rng.sample_iter(&Standard).take(NUM_ELEMS);
-        let mut rotated_vec: RotatedVec<usize> = RotatedVec::new();
-        for v in iter {
-            rotated_vec.push(v);
-        }
-        let mut rng: SmallRng = SeedableRng::seed_from_u64(seed);
-        let iter = rng.sample_iter(&Standard).take(NUM_ELEMS).collect::<Vec<usize>>().into_iter().rev();
-        for v in iter {
-            assert_eq!(rotated_vec.pop().unwrap(), v);
-        }
-        assert!(rotated_vec.is_empty());
-    }
-
-    #[test]
-    fn compare_iter() {
-        // FIXME: remove when const fns are in stable
-        let seed: u64 = u64::from_be_bytes(*b"cafebabe");
-        let mut rng: SmallRng = SeedableRng::seed_from_u64(seed);
-        let iter = rng.sample_iter(&Standard).take(NUM_ELEMS);
-        let mut rotated_vec: RotatedVec<usize> = RotatedVec::new();
-        for v in iter {
-            rotated_vec.push(v);
-        }
-        let iter = rotated_vec.iter();
-        for (i, &v) in iter.enumerate() {
-            assert!(*rotated_vec.get(i).unwrap() == v);
-        }
-    }
-
-    #[test]
-    fn compare_into_iter() {
-        // FIXME: remove when const fns are in stable
-        let seed: u64 = u64::from_be_bytes(*b"cafebabe");
-        let mut rng: SmallRng = SeedableRng::seed_from_u64(seed);
-        let iter = rng.sample_iter(&Standard).take(NUM_ELEMS as usize);
-        let mut rotated_vec: RotatedVec<usize> = RotatedVec::new();
-        for v in iter {
-            rotated_vec.push(v);
-        }
-        let mut iter = rotated_vec.clone().into_iter();
-        for i in 0..NUM_ELEMS {
-            assert!(*rotated_vec.get(i).unwrap() == iter.next().unwrap());
-        }
-    }
-
-    #[test]
-    fn test_iter_overrides() {
-        let rotated_vec: RotatedVec<_> = (0usize..NUM_ELEMS).collect();
-        let iter = rotated_vec.iter();
-        assert!(*iter.min().unwrap() == *rotated_vec.get(0).unwrap());
-        assert!(*iter.max().unwrap() == *rotated_vec.get(NUM_ELEMS - 1).unwrap());
-        assert!(*iter.last().unwrap() == *rotated_vec.get(NUM_ELEMS - 1).unwrap());
-        assert!(iter.count() == rotated_vec.len());
-        assert!(*iter.last().unwrap() == *rotated_vec.get(NUM_ELEMS - 1).unwrap());
-        let step = NUM_ELEMS / 10;
-        let mut iter_nth = iter;
-        assert!(*iter_nth.nth(step - 1).unwrap() == *rotated_vec.get(step - 1).unwrap());
-        assert!(*iter_nth.nth(step - 1).unwrap() == *rotated_vec.get((2 * step) - 1).unwrap());
-        let mut iter_nth_back = iter;
-        let last_index = rotated_vec.len() - 1;
-        assert!(*iter_nth_back.nth_back(step - 1).unwrap() == *rotated_vec.get(last_index - step + 1).unwrap());
-        assert!(*iter_nth_back.nth_back(step - 1).unwrap() == *rotated_vec.get(last_index - (2 * step) + 1).unwrap());
-        let mut iter_mut = rotated_vec.iter();
-        for i in 0..(NUM_ELEMS / 2) {
-            assert!(*iter_mut.next().unwrap() == *rotated_vec.get(i).unwrap());
-            assert!(*iter_mut.next_back().unwrap() == *rotated_vec.get(last_index - i).unwrap());
-        }
-        assert!(iter_mut.next().is_none());
     }
 }
