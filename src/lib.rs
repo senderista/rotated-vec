@@ -326,10 +326,10 @@ where
         self.data.shrink_to_fit();
     }
 
-   /// Shortens the vector, keeping the first `len` elements and dropping
+    /// Shortens the vector, keeping the first `len` elements and dropping
     /// the rest.
     ///
-    /// This is an O(√n) operation.
+    /// This is an `O(√n)` operation.
     ///
     /// If `len` is greater than the vector's current length, this has no
     /// effect.
@@ -560,7 +560,7 @@ where
 
     /// Inserts an element at position `index` within the vector.
     ///
-    /// This is an O(√n) operation.
+    /// This is an `O(√n)` operation.
     ///
     /// # Panics
     ///
@@ -665,7 +665,7 @@ where
 
     /// Removes and returns the element at position `index` within the vector.
     ///
-    /// This is an O(√n) operation.
+    /// This is an `O(√n)` operation.
     ///
     /// # Panics
     ///
