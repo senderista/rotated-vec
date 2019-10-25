@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://senderista.github.io/sorted-vec/")]
+#![doc(html_root_url = "https://senderista.github.io/rotated-vec/")]
 #![doc(html_logo_url = "https://raw.githubusercontent.com/senderista/sorted-vec/master/cells.png")]
 
 use std::mem;
@@ -10,8 +10,9 @@ use std::ops::{Index, IndexMut};
 
 /// A dynamic array based on a 2-level rotated array.
 ///
-/// See <a href="https://github.com/senderista/sorted-vec/blob/master/README.md">the repository README</a> for a detailed discussion of this collection's performance
-/// benefits and drawbacks.
+/// See <a href="https://github.com/senderista/sorted-vec/blob/master/README.md">the README for `sorted-vec`</a>
+/// (a sorted set implementation based on the same data structure) for a detailed discussion of this collection's
+/// performance benefits and drawbacks.
 ///
 /// # Examples
 ///
