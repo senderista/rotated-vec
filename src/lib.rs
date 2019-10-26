@@ -1,5 +1,10 @@
+//! A dynamic array based on a 2-level rotated array.
+//!
+//! See <a href="https://github.com/senderista/sorted-vec/blob/master/README.md">the `sorted-vec` README</a> for a detailed discussion of the performance
+//! benefits and drawbacks of an equivalent data structure.
+
 #![doc(html_root_url = "https://senderista.github.io/rotated-vec/")]
-#![doc(html_logo_url = "https://raw.githubusercontent.com/senderista/sorted-vec/master/cells.png")]
+#![doc(html_logo_url = "https://raw.githubusercontent.com/senderista/sorted-vec/master/img/cells.png")]
 
 use std::mem;
 use std::cmp::{min, Ordering};
@@ -10,9 +15,9 @@ use std::ops::{Index, IndexMut};
 
 /// A dynamic array based on a 2-level rotated array.
 ///
-/// See <a href="https://github.com/senderista/sorted-vec/blob/master/README.md">the README for `sorted-vec`</a>
-/// (a sorted set implementation based on the same data structure) for a detailed discussion of this collection's
-/// performance benefits and drawbacks.
+/// This is roughly a drop-in replacement for `Vec`, except that there is no
+/// deref to a slice, so underlying slice methods are unavailable. Many of
+/// the most useful slice methods have been ported.
 ///
 /// # Examples
 ///
@@ -23,19 +28,23 @@ use std::ops::{Index, IndexMut};
 /// // would be `RotatedVec<i32>` in this example).
 /// let mut vec = RotatedVec::new();
 ///
-/// // Add some integers.
+/// // Push some integers onto the vector.
 /// vec.push(-1);
 /// vec.push(6);
 /// vec.push(1729);
 /// vec.push(24);
 ///
-/// // Check for a specific one.
-/// if !vec.contains(&42) {
-///     println!("We don't have the answer to Life, the Universe, and Everything :-(");
-/// }
+/// // Pop an integer from the vector.
+/// vec.pop();
+///
+/// // Insert an integer at a given index.
+/// vec.insert(1, 0);
 ///
 /// // Remove an integer at a given index.
 /// vec.remove(1);
+///
+/// // Change an integer at a given index.
+/// vec[1] = 0;
 ///
 /// // Iterate over everything.
 /// for int in &vec {
@@ -52,6 +61,9 @@ pub struct RotatedVec<T> {
 ///
 /// This `struct` is created by the [`iter`] method on [`RotatedVec`][`RotatedVec`].
 /// See its documentation for more.
+///
+/// [`RotatedVec`]: struct.RotatedVec.html
+/// [`iter`]: struct.RotatedVec.html#method.iter
 #[derive(Debug, Copy, Clone)]
 pub struct Iter<'a, T: 'a> {
     container: &'a RotatedVec<T>,
@@ -78,6 +90,9 @@ where
 ///
 /// This `struct` is created by the [`iter_mut`] method on [`RotatedVec`][`RotatedVec`].
 /// See its documentation for more.
+///
+/// [`RotatedVec`]: struct.RotatedVec.html
+/// [`iter_mut`]: struct.RotatedVec.html#method.iter_mut
 #[derive(Debug)]
 pub struct IterMut<'a, T: 'a> {
     container: &'a mut RotatedVec<T>,
