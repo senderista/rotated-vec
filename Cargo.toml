@@ -3,6 +3,9 @@ name = "rotated-vec"
 version = "0.1.0"
 authors = ["Tobin Baker <tobin.d.baker@gmail.com>"]
 edition = "2018"
+license = "Apache-2.0"
+description = "A dynamic array mostly compatible with `std::vec::Vec`, implemented as a 2-level rotated array"
+repository = "https://github.com/senderista/rotated-vec"
 
 [lib]
 name = "rotated_vec"
